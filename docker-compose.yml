@@ -1,0 +1,91 @@
+version: "3.8"
+
+services:
+  go-optimizr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-optimizr
+
+    # Resource constraints: 1 CPU, 8GB RAM
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 8G
+        reservations:
+          cpus: "0.5"
+          memory: 4G
+
+    # For docker-compose v2 / non-swarm mode
+    cpus: 1.0
+    mem_limit: 8g
+    mem_reservation: 4g
+
+    # Volume mounts for images
+    volumes:
+      - ./images:/data/input:ro      # Input images (read-only)
+      - ./output:/data/output:rw     # Output WebP images (read-write)
+
+    # Environment variables (optional overrides)
+    environment:
+      - GOMAXPROCS=1                  # Limit Go runtime to 1 CPU
+
+    # Command with configurable parameters
+    command:
+      - "-input=/data/input"
+      - "-output=/data/output"
+      - "-workers=3"
+      - "-quality=80"
+      - "-verbose"
+
+    # Graceful shutdown timeout
+    stop_grace_period: 30s
+
+    # Restart policy
+    restart: "no"
+
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+
+    # Read-only root filesystem for security
+    read_only: true
+
+    # Temporary filesystem for any needed writes
+    tmpfs:
+      - /tmp:size=100M
+
+  # Optional: Batch processing with different quality settings
+  go-optimizr-hq:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: go-optimizr-hq
+    profiles:
+      - high-quality
+
+    cpus: 1.0
+    mem_limit: 8g
+
+    volumes:
+      - ./images:/data/input:ro
+      - ./output-hq:/data/output:rw
+
+    environment:
+      - GOMAXPROCS=1
+
+    command:
+      - "-input=/data/input"
+      - "-output=/data/output"
+      - "-workers=3"
+      - "-quality=95"           # Higher quality for archival
+      - "-verbose"
+
+    stop_grace_period: 30s
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:size=100M
